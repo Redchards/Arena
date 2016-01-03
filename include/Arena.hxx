@@ -174,6 +174,6 @@ using ArenaAllocator = Allocator<T,
 								 std::integral_constant<Safety, safety>,
 								 MemoryAllocator>;
 
-#include <Arena.txx>
+#include <Arena.inl>
 
 #endif // ARENA_ALLOCATOR_HXX
