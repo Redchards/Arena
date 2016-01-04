@@ -16,17 +16,21 @@ struct has_rebind : std::false_type {};
 template<class Allocator>
 struct has_rebind<Allocator, void_t<decltype(Allocator::template rebind<neutral>)>> : std::true_type {};
 
-template<class, class = void>
-struct has_size_type : std::false_type {};
+template<class, class Default, class = void>
+struct defaulted_size_type 
+: identity<Default> {};
 
-template<class AllocationPolicy>
-struct has_size_type<AllocationPolicy, void_t<decltype(typename AllocationPolicy::size_type{})>> : std::true_type {};
+template<class AllocationPolicy, class Default>
+struct defaulted_size_type<AllocationPolicy, Default, void_t<decltype(typename AllocationPolicy::size_type{})>>
+: identity<typename AllocationPolicy::size_type> {};
 
-template<class, class = void>
-struct has_difference_type : std::false_type {};
+template<class, class Default, class = void>
+struct defaulted_difference_type 
+: identity<Default> {};
 
-template<class AllocationPolicy>
-struct has_difference_type<AllocationPolicy, void_t<decltype(typename AllocationPolicy::difference_type{})>> : std::true_type {};
+template<class AllocationPolicy, class Default>
+struct defaulted_difference_type<AllocationPolicy, Default, void_t<decltype(typename AllocationPolicy::difference_type{})>>
+: identity<typename AllocationPolicy::difference_type> {};
 
 template<template<class...> class AllocationPolicy, typename U, class... PolicyArgs>
 struct rebind_allocator
@@ -60,12 +64,8 @@ class Allocator : public AllocationPolicy<T, PolicyArgs...>
 	typedef const T* const_pointer;
 	typedef T& reference;
 	typedef const T& const_reference;
-	typedef typename std::conditional<has_size_type<Policy>::value, 
-									  decltype(typename Policy::size_type{}),
-									  size_t>::type size_type;
-	typedef typename std::conditional<has_difference_type<Policy>::value,
-									  decltype(typename Policy::difference_type{}),
-									  ptrdiff_t>::type difference_type;
+	typedef typename defaulted_size_type<Policy, size_t>::type size_type;
+	typedef typename defaulted_difference_type<Policy, ptrdiff_t>::type difference_type;
 	
 	public:
 	static constexpr uint64 alignment = get_alignment<Policy>::value;
@@ -154,10 +154,6 @@ template<typename T>
 class DefaultAllocationPolicy
 {	
 	public:
-	typedef size_t size_type;
-	typedef ptrdiff_t difference_type;
-	
-	public:
 	explicit DefaultAllocationPolicy() noexcept
 	{}
 	inline explicit DefaultAllocationPolicy(const DefaultAllocationPolicy&) noexcept
@@ -170,12 +166,12 @@ class DefaultAllocationPolicy
 	
 	~DefaultAllocationPolicy(){}
 	
-	T* allocate(size_type size, const T* = nullptr) const noexcept
+	T* allocate(size_t size, const T* = nullptr) const noexcept
 	{
 		return static_cast<T*>(malloc(size * sizeof(T)));
 	}
 	
-	void deallocate(T* ptr, size_type) const noexcept
+	void deallocate(T* ptr, size_t) const noexcept
 	{
 		free(ptr);
 	}
