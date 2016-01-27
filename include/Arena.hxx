@@ -62,17 +62,23 @@ T* roundUpPtr(T* ptr, uint32 alignment)
 	- MemoryAllocator = the base memory allocator, used to allocate/deallocate the main chunk, construct/destruct objects
 */
 template<typename T,
-		 class capacity = std::integral_constant<size_t, 4096>,
+		 class capacity = std::integral_constant<size_t, (sizeof(T) == 1 ? 125 : 4096)>, 
 		 class allocation = std::integral_constant<AllocationType, AllocationType::Aligned>,
 		 class safety = std::integral_constant<Safety, Safety::Enabled>,
 		 class MemoryAllocator = DefaultAllocator<T>>
 class ArenaAllocationPolicy : public MemoryAllocator::template rebind<T>::other
 {
-	static_assert(capacity::value > 0, 
-				  "Arena allocator with capacity of 0 is invalid !");
-	
 	protected:
 	union Node_;
+	
+	static_assert(capacity::value > 0, 
+				  "Arena allocator with capacity of 0 is invalid !");
+				  //capacity < std::numeric_limits<sized_integer_t<sizeof(size_t)>>::max()
+				  
+	static_assert(capacity::value < (std::numeric_limits<sized_integer_t<(sizeof(Node_) > sizeof(size_t) ? sizeof(size_t) : sizeof(Node_))>>::max()),
+	               "Arena capacity must be less than the max value of an integer of size = sizeof(T)");
+	
+	protected:
 	using BaseAllocator = typename MemoryAllocator::template rebind<T>::other;
 	
 	static constexpr uint64 alignment = std::conditional<allocation::value == AllocationType::Aligned,
